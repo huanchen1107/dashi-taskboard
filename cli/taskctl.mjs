@@ -914,13 +914,65 @@ async function moveIssue(api, taskId, options, overrides) {
   const status = requiredOption(options, "status");
   assertStatus(status);
   const attribution = resolveConversationAttribution(options, overrides);
-  const threadBinding = threadBindingFromOptions(options);
+  let threadBinding = threadBindingFromOptions(options);
+  let version;
+  if (status === "in_progress" && threadBinding === undefined && attribution.threadId) {
+    const autoBinding = await resolveLocalClaimBinding(api, taskId, attribution.threadId, overrides);
+    threadBinding = autoBinding.threadBinding;
+    version = options["if-version"] === undefined
+      ? autoBinding.version
+      : explicitVersion(options["if-version"]);
+  }
   return api.request("POST", `${taskPath(taskId)}/move`, {
     status,
     ...attribution,
     ...optionalField("threadBinding", threadBinding),
-    version: await resolveVersion(api, taskId, options["if-version"]),
+    version: version ?? await resolveVersion(api, taskId, options["if-version"]),
   });
+}
+
+async function resolveLocalClaimBinding(api, taskId, threadId, overrides) {
+  const [taskResponse, context] = await Promise.all([
+    api.request("GET", taskPath(taskId)),
+    currentContext(api, {}, overrides),
+  ]);
+  const task = taskResponse.task;
+  const project = context.project;
+  if (!task || !project || task.projectId !== project.id) {
+    throw new TaskctlError(
+      "Automatic claim requires the issue and current workspace to resolve to the same project",
+      { code: "AUTO_BIND_UNAVAILABLE", exitCode: 2 },
+    );
+  }
+  if (task.status !== "todo") {
+    throw new TaskctlError(
+      `Automatic claim only accepts todo issues (current status: ${task.status})`,
+      { code: "AUTO_BIND_UNAVAILABLE", exitCode: 2 },
+    );
+  }
+  const workspacePath = typeof project.workspacePath === "string" ? project.workspacePath.trim() : "";
+  const projectKind = project.projectKind ?? "local";
+  const codexHostId = project.hostId ?? "local";
+  if (
+    projectKind !== "local"
+    || codexHostId !== "local"
+    || !path.isAbsolute(workspacePath)
+  ) {
+    throw new TaskctlError(
+      "Automatic local claim needs a local project with an absolute workspace path",
+      { code: "AUTO_BIND_UNAVAILABLE", exitCode: 2 },
+    );
+  }
+  return {
+    version: task.version,
+    threadBinding: {
+      threadId,
+      codexProjectId: project.id,
+      codexProjectKind: "local",
+      codexHostId: "local",
+      workspacePath,
+    },
+  };
 }
 
 function threadBindingFromOptions(options) {
