@@ -1084,6 +1084,62 @@ kbd {
   font-weight: 500;
 }
 
+.project-automation-cli-mode {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  margin: 4px 0 10px;
+  border: 1px solid color-mix(in srgb, var(--status-progress) 35%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--status-progress) 8%, transparent);
+}
+
+.project-automation-cli-mode strong {
+  color: var(--status-progress);
+  font-size: 12px;
+}
+
+.project-automation-cli-mode p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.project-automation-cli-command {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.project-automation-cli-command:hover,
+.project-automation-cli-command:focus-visible {
+  border-color: var(--accent);
+}
+
+.project-automation-cli-command code {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-automation-cli-command span {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: 11px;
+}
+
 .project-automation-switch,
 .project-automation-field {
   justify-content: space-between;

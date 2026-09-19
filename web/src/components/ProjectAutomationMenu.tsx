@@ -31,6 +31,7 @@ interface AutomationState extends AutomationOptions {
 }
 
 interface ProjectAutomationMenuProps {
+  embedded: boolean;
   automation?: Partial<AutomationState>;
   models: AiChatModel[];
   pending: boolean;
@@ -67,6 +68,7 @@ function automationOptions(
 }
 
 export function ProjectAutomationMenu({
+  embedded,
   automation,
   models,
   pending,
@@ -80,6 +82,7 @@ export function ProjectAutomationMenu({
   const menuRef = useRef<HTMLDivElement>(null);
   const wasPendingRef = useRef(pending);
   const [open, setOpen] = useState(false);
+  const [cliCommandCopied, setCliCommandCopied] = useState(false);
   const [pickerMenu, setPickerMenu] = useState<"interval" | "model" | "reasoning" | null>(null);
   const [position, setPosition] = useState({ left: 0, top: 0, ready: false });
   const [draft, setDraft] = useState<AutomationOptions>(() => automationOptions(models, automation));
@@ -165,6 +168,27 @@ export function ProjectAutomationMenu({
           {stateLabel}
         </span>
       </div>
+      {!embedded && (
+        <div className="project-automation-cli-mode" role="status">
+          <strong>{text("CLI 模式可用", "CLI mode available")}</strong>
+          <p>{text(
+            "目前是 standalone 模式。背景排程需要 Codex App；CLI 認領可直接使用。",
+            "This is standalone mode. Background scheduling needs the Codex App; CLI claiming is available now.",
+          )}</p>
+          <button
+            type="button"
+            className="project-automation-cli-command"
+            onClick={() => {
+              void navigator.clipboard?.writeText("taskctl issue move <ISSUE_ID> --status in_progress");
+              setCliCommandCopied(true);
+              window.setTimeout(() => setCliCommandCopied(false), 1800);
+            }}
+          >
+            <code>taskctl issue move &lt;ISSUE_ID&gt; --status in_progress</code>
+            <span>{cliCommandCopied ? text("已复制", "Copied") : text("复制", "Copy")}</span>
+          </button>
+        </div>
+      )}
       <div className="project-automation-switch">
         <span>{text("自动认领开关", "Auto-claim")}</span>
         <button
