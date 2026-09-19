@@ -1545,7 +1545,31 @@ export function App() {
   ]);
 
   const saveProjectAutomation = useCallback((options: ProjectAutomationOptions) => {
-    if (!automationRequestContext) return;
+    // In a standalone browser there is no embedded Codex host to receive the
+    // automation message. Still persist the preference so the UI accurately
+    // reflects the requested CLI mode and the user can run taskctl separately.
+    if (!automationRequestContext) {
+      if (embedded || !selectedProject) return;
+      const existing = projectAutomationsRef.current[selectedProject.id];
+      const model = automationModels.find((candidate) => candidate.slug === options.model);
+      writeProjectAutomation(selectedProject.id, {
+        ...existing,
+        codexProjectId: existing?.codexProjectId ?? selectedProject.id,
+        codexProjectKind: existing?.codexProjectKind ?? "local",
+        codexHostId: existing?.codexHostId ?? "local",
+        workspacePath: existing?.workspacePath
+          ?? deviceWorkspacePaths[selectedProject.id]
+          ?? selectedProject.workspacePath
+          ?? "",
+        status: options.enabledByUser ? "ACTIVE" : "PAUSED",
+        ...options,
+        model: model?.slug ?? options.model,
+        reasoningEffort: model?.supportedReasoningEfforts.includes(options.reasoningEffort)
+          ? options.reasoningEffort
+          : model?.defaultReasoningEffort ?? options.reasoningEffort,
+      });
+      return;
+    }
     const queuedSave = {
       projectId: automationRequestContext.taskboardProjectId,
       context: automationRequestContext,
@@ -1556,9 +1580,13 @@ export function App() {
       void drainQueuedAutomationSaves(queuedSave.projectId);
     }
   }, [
+    automationModels,
     automationRequestContext,
+    deviceWorkspacePaths,
     drainQueuedAutomationSaves,
-  ]);
+    embedded,
+    selectedProject,
+    ]);
 
   function openTaskDetail(task: Pick<Task, "identifier" | "projectId">) {
     const fullTask = tasksRef.current.find((candidate) => candidate.identifier === task.identifier);

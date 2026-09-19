@@ -100,7 +100,11 @@ export function ProjectAutomationMenu({
             ? text("运行中", "Running")
             : text("已暂停", "Paused");
   const selectedModel = models.find((model) => model.slug === draft.model) ?? models[0];
-  const disabled = pending || !selectedModel || Boolean(unavailableReason);
+  // Standalone Taskboard cannot run the Codex App scheduler, but the switch is
+  // still useful for saving the user's CLI automation preference locally.
+  // Keep the controls usable in that mode and explain the execution boundary
+  // in the CLI callout instead of presenting a permanently disabled UI.
+  const disabled = pending || !selectedModel || (embedded && Boolean(unavailableReason));
 
   useEffect(() => {
     if (!open) return;
@@ -172,8 +176,8 @@ export function ProjectAutomationMenu({
         <div className="project-automation-cli-mode" role="status">
           <strong>{text("CLI 模式可用", "CLI mode available")}</strong>
           <p>{text(
-            "目前是 standalone 模式。背景排程需要 Codex App；CLI 認領可直接使用。",
-            "This is standalone mode. Background scheduling needs the Codex App; CLI claiming is available now.",
+            "目前是 standalone 模式。開關會保存 CLI 認領偏好；背景排程仍需 Codex App。",
+            "Standalone mode: the switch saves your CLI claiming preference; background scheduling still needs the Codex App.",
           )}</p>
           <button
             type="button"
