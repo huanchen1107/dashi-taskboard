@@ -3524,6 +3524,7 @@ export function App() {
           <div className="header-actions">
             {selectedProject && (
               <ProjectAutomationMenu
+                embedded={embedded}
                 automation={selectedProjectAutomation}
                 models={automationModels}
                 pending={automationPending || automationCatalogLoading}
