@@ -125,6 +125,7 @@ const HELP_TEXT = new Map([
 
 Commands:
   context current [--cwd PATH] [--json]
+  work ISSUE_ID -- COMMAND [ARGS...]
   project list
   project create --name NAME [--id ID] [--workspace-path PATH]
   project map PROJECT_ID --workspace-path PATH
@@ -156,7 +157,7 @@ Conversation attribution for issue/comment writes:
   External options must be supplied together and ignore CODEX_THREAD_ID.
   --binding-* options remain separate native Codex bindings.
 
-Run taskctl issue --help for all issue arguments.`],
+  Run taskctl issue --help for all issue arguments.`],
   ["issue", `Usage: taskctl issue ACTION [arguments] [options]
 
 Actions:
@@ -200,6 +201,15 @@ Priorities: none, urgent, high, medium, low
 
 Example:
   taskctl issue get LOCAL-275 --json`],
+  ["work", `Usage: taskctl work ISSUE_ID -- COMMAND [ARGS...]
+
+Run a command while binding its lifecycle to one Taskboard issue:
+  1. Move the issue to in_progress.
+  2. Run COMMAND with TASKBOARD_ISSUE_ID set.
+  3. Move it to done on exit 0, or blocked on failure.
+
+Example:
+  taskctl work AWI-2 -- npm test`],
   ["comment add", `Usage: taskctl comment add ISSUE_ID (--body TEXT | --body-file FILE)
   [--thread-id ID | --agent-platform claude|pi|agy|grok --session-id ID]
   [--binding-thread-id ID
@@ -337,7 +347,8 @@ export async function main(argv = process.argv.slice(2), overrides = {}) {
 
 async function execute(parsed, overrides) {
   const command = `${parsed.resource ?? ""} ${parsed.action ?? ""}`.trim();
-  const allowedOptions = COMMAND_OPTIONS.get(command);
+  const isWorkCommand = parsed.resource === "work";
+  const allowedOptions = isWorkCommand ? new Set(["json"]) : COMMAND_OPTIONS.get(command);
   if (!allowedOptions) {
     throw usageError(
       "Expected one of: project list/create/map/readme, cloud login/status/logout, issue list/get/create/update/move/archive/restore/tree/relation, comment list/add/update/delete, attachment list/download/upload, context current",
@@ -354,6 +365,7 @@ async function execute(parsed, overrides) {
       ? await resolveCompanionUrl(env, overrides)
       : await resolveTaskboardBaseUrl(env, overrides);
   const api = createApiClient(overrides, target);
+  if (isWorkCommand) return runWork(api, parsed, overrides);
   switch (command) {
     case "project list":
       expectOperandCount(parsed, 0);
@@ -504,6 +516,42 @@ async function execute(parsed, overrides) {
     default:
       throw usageError(`Unsupported command: ${command}`);
   }
+}
+
+/**
+ * Run a local command while keeping one Taskboard issue bound to its lifecycle.
+ * This is intentionally a CLI wrapper: the browser cannot safely execute shell
+ * commands, while an agent/CI runner can use it as the single source of truth.
+ */
+async function runWork(api, parsed, overrides) {
+  const issueId = parsed.action;
+  if (!issueId || parsed.operands.length === 0) {
+    throw usageError("Usage: taskctl work ISSUE_ID -- COMMAND [ARGS...]");
+  }
+  const command = parsed.operands[0];
+  const args = parsed.operands.slice(1);
+  await moveIssue(api, issueId, { status: "in_progress" }, overrides);
+
+  const spawnImplementation = overrides.spawn ?? spawn;
+  const processEnv = overrides.env ?? process.env;
+  const child = spawnImplementation(command, args, {
+    stdio: "inherit",
+    env: { ...processEnv, TASKBOARD_ISSUE_ID: issueId },
+  });
+  const exitCode = await new Promise((resolve, reject) => {
+    child.once("error", reject);
+    child.once("close", (code, signal) => resolve(
+      typeof code === "number" ? code : signal ? 1 : 0,
+    ));
+  });
+  const finalStatus = exitCode === 0 ? "done" : "blocked";
+  await moveIssue(api, issueId, { status: finalStatus }, overrides);
+  return {
+    issueId,
+    status: finalStatus,
+    command: [command, ...args],
+    exitCode,
+  };
 }
 
 function createApiClient(overrides, {
