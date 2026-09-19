@@ -398,6 +398,40 @@ test("issue move fetches the current version when --if-version is omitted", asyn
   });
 });
 
+test("issue move automatically binds a local todo issue when claiming in progress", async () => {
+  const calls = [];
+  const workspacePath = path.resolve("/work/repo");
+  const result = await run(
+    ["issue", "move", "TASK-1", "--status", "in_progress"],
+    async (url, init) => {
+      calls.push({ url: url.toString(), init });
+      if (url.pathname === "/api/tasks/TASK-1" && init.method === "GET") {
+        return response({ task: { id: "TASK-1", projectId: "local", status: "todo", version: 3 } });
+      }
+      if (url.pathname === "/api/projects" && init.method === "GET") {
+        return response({ projects: [{ id: "local", workspacePath }] });
+      }
+      return response({ task: { id: "TASK-1", status: "in_progress", version: 4 } });
+    },
+    { cwd: workspacePath },
+  );
+
+  assert.equal(result.exitCode, 0);
+  assert.equal(calls.length, 3);
+  assert.deepEqual(JSON.parse(calls[2].init.body), {
+    status: "in_progress",
+    threadId: "thread-current",
+    threadBinding: {
+      threadId: "thread-current",
+      codexProjectId: "local",
+      codexProjectKind: "local",
+      codexHostId: "local",
+      workspacePath,
+    },
+    version: 3,
+  });
+});
+
 test("issue move separates controller attribution from the task thread binding", async () => {
   let requestBody;
   const windowsWorkspacePath = String.raw`C:\Users\admin\Documents\dashi-taskboard`;
