@@ -216,18 +216,42 @@ function ProcessingLabel({ processing }: { processing: TaskCardPresentation["pro
 }
 
 function ProcessingStatusRow({
+  task,
   presentation,
+  onUpdate,
   onOpenConversation,
 }: {
+  task: Task;
   presentation: TaskCardPresentation;
+  onUpdate: (task: Task, changes: Partial<TaskDraft>) => Promise<Task>;
   onOpenConversation: (conversation: TaskConversationItem) => void;
 }) {
   const running = presentation.processing.running;
+  const conversation = presentation.conversations[0];
+  const canContinue = Boolean(conversation);
   return (
     <div className={`task-processing-row${running ? " is-running" : " is-paused"}`}>
       {running && <img className="task-processing-glyph" src={processingAnimation} alt="" aria-hidden="true" />}
       <ProcessingLabel processing={presentation.processing} />
       <span className="task-processing-spacer" aria-hidden="true" />
+      <button
+        type="button"
+        className="task-processing-toggle"
+        disabled={!canContinue}
+        aria-label={running ? "暂停工作" : "继续工作"}
+        title={running ? "暂停工作" : "继续工作"}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (running) {
+            void onUpdate(task, { status: "todo" }).catch(() => {});
+          } else if (conversation) {
+            onOpenConversation(conversation);
+            if (task.status === "todo") void onUpdate(task, { status: "in_progress" }).catch(() => {});
+          }
+        }}
+      >
+        {running ? "暂停" : "继续"}
+      </button>
       {presentation.conversations.length > 0 && (
         <TaskConversationMenu
           conversations={presentation.conversations}
@@ -435,6 +459,7 @@ export function TaskCard({
     avatarUrl: task.creatorAvatarUrl,
   };
   const processingCard = task.status === "in_progress";
+  const resumableCard = task.status === "todo" && presentation.conversations.length > 0;
   const supportsConversation = task.status === "in_progress"
     || task.status === "in_review"
     || task.status === "blocked"
@@ -602,11 +627,13 @@ export function TaskCard({
         </div>
       )}
 
-      {processingCard && (
+      {(processingCard || resumableCard) && (
         <>
           <ProcessingProgress presentation={presentation} />
           <ProcessingStatusRow
+            task={task}
             presentation={presentation}
+            onUpdate={onUpdate}
             onOpenConversation={onOpenConversation}
           />
         </>

@@ -8257,6 +8257,29 @@ kbd {
   gap: 6px;
 }
 
+.task-processing-toggle {
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.task-processing-toggle:hover:not(:disabled),
+.task-processing-toggle:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.task-processing-toggle:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+}
+
 .task-processing-glyph {
   display: block;
   flex: 0 0 16px;
