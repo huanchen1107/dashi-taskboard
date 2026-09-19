@@ -781,7 +781,9 @@ export function App() {
   const [connection, setConnection] = useState<ConnectionState>("connecting");
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState(readTaskFilters);
-  const [taskSort, setTaskSort] = useState<TaskSort>("default");
+  // Keep the actionable queue visible in priority order on first load.
+  // Users can still switch back to the manual/default order from the filter menu.
+  const [taskSort, setTaskSort] = useState<TaskSort>("priority");
   const [boardView, setBoardView] = useState<BoardView>(() => readProjectBoardView(initialProjectId));
   const [projectBoardDisplaySettings, setProjectBoardDisplaySettings] = useState(
     readProjectBoardDisplaySettings,
