@@ -227,7 +227,11 @@ function ProcessingStatusRow({
   onOpenConversation: (conversation: TaskConversationItem) => void;
 }) {
   const running = presentation.processing.running;
-  const conversation = presentation.conversations[0];
+  const conversation = presentation.conversations.find((candidate) => (
+    candidate.nativeThreadId === task.threadId
+      || candidate.legacyLocalThreadId === task.threadId
+      || candidate.agentSession?.sessionId === task.agentSession?.sessionId
+  )) ?? presentation.conversations[0];
   const canContinue = Boolean(conversation);
   return (
     <div className={`task-processing-row${running ? " is-running" : " is-paused"}`}>
@@ -238,15 +242,22 @@ function ProcessingStatusRow({
         type="button"
         className="task-processing-toggle"
         disabled={!canContinue}
-        aria-label={running ? "暂停工作" : "继续工作"}
-        title={running ? "暂停工作" : "继续工作"}
+        aria-label={running ? `暂停 ${task.identifier}` : `继续 ${task.identifier}`}
+        title={running ? `暂停 ${task.identifier}` : `继续 ${task.identifier}`}
         onClick={(event) => {
           event.stopPropagation();
           if (running) {
             void onUpdate(task, { status: "todo" }).catch(() => {});
           } else if (conversation) {
-            onOpenConversation(conversation);
-            if (task.status === "todo") void onUpdate(task, { status: "in_progress" }).catch(() => {});
+            // Resume the existing issue/session first. Never create a new task
+            // or choose an unrelated conversation when a card has multiple refs.
+            if (task.status === "todo") {
+              void onUpdate(task, { status: "in_progress" })
+                .then(() => onOpenConversation(conversation))
+                .catch(() => {});
+            } else {
+              onOpenConversation(conversation);
+            }
           }
         }}
       >
