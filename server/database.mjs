@@ -1724,6 +1724,16 @@ export class TaskboardDatabase {
     ));
   }
 
+  // A lightweight monotonic revision for local clients. Task version is
+  // incremented on every task mutation, so summing versions gives the UI a
+  // stable change cursor without coupling local mode to cloud-only tables.
+  taskRevision() {
+    const row = this.database.prepare(
+      "SELECT COALESCE(SUM(version), 0) AS revision FROM tasks",
+    ).get();
+    return Number(row?.revision ?? 0);
+  }
+
   getTaskSource(id) {
     const row = this.database.prepare(
       "SELECT external_source FROM tasks WHERE id = ? OR identifier = ?",

@@ -207,7 +207,7 @@ test("does not invalidate after being stopped while a request is pending", async
   assert.equal(invalidations, 0);
 });
 
-test("cloud metadata selects polling and local metadata does not", () => {
+test("cloud and local metadata select polling when advertised", () => {
   assert.equal(getRevisionPollingInterval({
     mode: "cloud",
     realtime: { transport: "poll", intervalMs: 2000 },
@@ -215,7 +215,7 @@ test("cloud metadata selects polling and local metadata does not", () => {
   assert.equal(getRevisionPollingInterval({
     mode: "local",
     realtime: { transport: "poll", intervalMs: 2000 },
-  }), null);
+  }), 2000);
   assert.equal(getRevisionPollingInterval({ mode: "cloud" }), null);
 });
 

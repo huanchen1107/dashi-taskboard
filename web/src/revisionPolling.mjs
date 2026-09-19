@@ -1,6 +1,8 @@
 export function getRevisionPollingInterval(metadata) {
-  if (metadata?.mode !== "cloud" || metadata.realtime?.transport !== "poll") return null;
-  return metadata.realtime.intervalMs;
+  if (metadata?.realtime?.transport !== "poll") return null;
+  return Number.isFinite(metadata.realtime.intervalMs) && metadata.realtime.intervalMs > 0
+    ? metadata.realtime.intervalMs
+    : 2000;
 }
 
 export function getRevisionWebSocketConfig(metadata) {

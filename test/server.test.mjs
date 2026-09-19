@@ -114,7 +114,14 @@ test("health and the default local project are available", async () => {
   assert.deepEqual(metadata.body, {
     manageTaskboardSkillPath: skillPath,
     capabilities: { localAiChat: true },
+    mode: "local",
+    realtime: { transport: "poll", intervalMs: 2000 },
   });
+
+  const initialRevision = await request(baseUrl, "/api/revisions?since=0");
+  assert.equal(initialRevision.response.status, 200);
+  assert.equal(typeof initialRevision.body.changed, "boolean");
+  assert.equal(typeof initialRevision.body.revision, "number");
 
   const result = await request(baseUrl, "/api/projects");
   assert.equal(result.response.status, 200);

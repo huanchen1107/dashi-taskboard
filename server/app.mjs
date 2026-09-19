@@ -2079,6 +2079,12 @@ export function createTaskboardServer(options = {}) {
             localAiChat: !configuredTrustedRequest
               && isLoopbackAddress(request.socket.remoteAddress),
           },
+          ...(!capabilityCloudConfig?.remoteUrl
+            ? {
+              mode: "local",
+              realtime: { transport: "poll", intervalMs: 2_000 },
+            }
+            : {}),
           ...(capabilityCloudConfig?.remoteUrl
             ? {
               mode: "cloud",
@@ -2090,6 +2096,27 @@ export function createTaskboardServer(options = {}) {
             }
             : {}),
         });
+      }
+
+      if (pathname === "/api/revisions") {
+        if (request.method !== "GET") return methodNotAllowed(response, ["GET"]);
+        const unknown = [...url.searchParams.keys()].filter((key) => key !== "since");
+        if (unknown.length > 0) {
+          throw new ApiError(400, "UNKNOWN_QUERY_PARAMETER", `Unknown query parameter: ${unknown[0]}`);
+        }
+        if (url.searchParams.getAll("since").length !== 1) {
+          throw new ApiError(400, "INVALID_QUERY_PARAMETER", "'since' must be provided once");
+        }
+        const rawSince = url.searchParams.get("since");
+        if (!/^\d+$/.test(rawSince ?? "")) {
+          throw new ApiError(400, "INVALID_QUERY_PARAMETER", "'since' must be a non-negative integer");
+        }
+        const since = Number(rawSince);
+        if (!Number.isSafeInteger(since)) {
+          throw new ApiError(400, "INVALID_QUERY_PARAMETER", "'since' must be a non-negative integer");
+        }
+        const revision = database.taskRevision();
+        return sendJson(response, 200, { changed: revision > since, revision });
       }
 
       if (pathname === "/api/local/ai/catalog") {
