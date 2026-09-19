@@ -90,6 +90,8 @@ export function ProjectAutomationMenu({
   const quota = automation?.quota;
   const stateLabel = !automation?.enabledByUser
     ? text("已暂停", "Paused")
+    : !embedded
+      ? text("CLI 偏好已开启", "CLI preference enabled")
     : automation.quotaAware && quota?.state === "blocked"
       ? text("额度暂停", "Paused by quota")
       : automation.quotaAware && quota?.state === "unavailable"
@@ -337,13 +339,17 @@ export function ProjectAutomationMenu({
         type="button"
         className={`project-automation-trigger no-drag ${status === "ACTIVE" ? "is-active" : "is-paused"}`}
         aria-label={status === "ACTIVE"
-          ? text("自动认领中", "Auto-claiming")
+          ? (!embedded
+            ? text("CLI 认领偏好已开启", "CLI claiming preference enabled")
+            : text("自动认领中", "Auto-claiming"))
           : text("自动化", "Automation")}
         aria-busy={pending}
         aria-haspopup="dialog"
         aria-expanded={open}
         title={status === "ACTIVE"
-          ? text("自动认领中", "Auto-claiming")
+          ? (!embedded
+            ? text("CLI 认领偏好已开启", "CLI claiming preference enabled")
+            : text("自动认领中", "Auto-claiming"))
           : text("自动化", "Automation")}
         onClick={() => {
           if (!open) {
@@ -355,7 +361,9 @@ export function ProjectAutomationMenu({
       >
         <TaskboardIcon name={status === "ACTIVE" ? "automationPause" : "automationPlay"} />
         <span>{status === "ACTIVE"
-          ? text("自动认领中", "Auto-claiming")
+          ? (!embedded
+            ? text("CLI 偏好已开启", "CLI enabled")
+            : text("自动认领中", "Auto-claiming"))
           : text("自动化", "Automation")}</span>
       </button>
       {menu}
